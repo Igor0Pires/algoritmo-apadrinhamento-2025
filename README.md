@@ -121,5 +121,5 @@ para instalar as depêndencias execute: ```bash pip install -r requirements.txt`
 ## Licença
 Este projeto está licenciado sob a licença MIT. Consulte o arquivo LICENSE para mais detalhes.
 
-[^1]: Será possivel filtrar esses dados no aplicativo e notebook.
+[^1]: Os dados do repositório são completamente fictícios.
 [^2]: <small> Valeu Guigas ;)</small>
