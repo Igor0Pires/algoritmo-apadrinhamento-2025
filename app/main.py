@@ -15,6 +15,7 @@ def filtro_colunas(df, indices):
     Returns:
         pd.DataFrame: DataFrame com as colunas filtradas.
     """
+    df = df.drop_duplicates(subset=df.columns[indices[0]], keep='last')
     return df.iloc[:, indices]
 
 
