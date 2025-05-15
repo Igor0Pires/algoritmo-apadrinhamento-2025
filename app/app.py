@@ -23,24 +23,31 @@ st.header("Upload de Arquivos")
 uploaded_file_afilhados = st.file_uploader("Faça upload do arquivo CSV de afilhados", type=["csv"])
 uploaded_file_padrinhos = st.file_uploader("Faça upload do arquivo CSV de padrinhos", type=["csv"])
 
-if 'x' not in st.session_state:
-        st.session_state.x = 0
-x = st.session_state.x
 # Carregar dados
 if uploaded_file_afilhados is not None and uploaded_file_padrinhos is not None:
     try:
         # Lê os arquivos CSV
-        df_afilhados = pd.read_csv(uploaded_file_afilhados)
-        df_padrinhos = pd.read_csv(uploaded_file_padrinhos)
+        if "df_padrinhos" not in st.session_state:
+            df_padrinhos = pd.read_csv(uploaded_file_padrinhos)
+            st.session_state.df_padrinhos = df_padrinhos
+        if "df_afilhados" not in st.session_state:
+            df_afilhados = pd.read_csv(uploaded_file_afilhados)
+            st.session_state.df_afilhados = df_afilhados
+        
+        with st.expander("Ver DataFrames Carregados"):
+            st.subheader("DataFrame de Afilhados")
+            st.dataframe(df_afilhados)
+            st.subheader("DataFrame de Padrinhos")
+            st.dataframe(df_padrinhos)
 
         # Multi seleção para escolher as colunas relevantes
-        st.subheader("Selecione as colunas relevantes para os afilhados")
+        st.subheader("Selecione as colunas relevantes para os afilhados (Nome completo deve ser a primeira coluna)")
         colunas_afilhados = df_afilhados.columns.tolist()
-        colunas_afilhados_selecionadas = st.multiselect("Colunas disponíveis:", colunas_afilhados, default=colunas_afilhados)
+        colunas_afilhados_selecionadas = st.multiselect("Colunas disponíveis:", colunas_afilhados, default=colunas_afilhados[1:])
 
-        st.subheader("Selecione as colunas relevantes para os padrinhos")
+        st.subheader("Selecione as colunas relevantes para os padrinhos (Nome completo deve ser a primeira coluna e Número de afilhados deve ser a última coluna)")
         colunas_padrinhos = df_padrinhos.columns.tolist()
-        colunas_padrinhos_selecionadas = st.multiselect("Colunas disponíveis:", colunas_padrinhos, default=colunas_padrinhos)
+        colunas_padrinhos_selecionadas = st.multiselect("Colunas disponíveis:", colunas_padrinhos, default=colunas_padrinhos[1:])
 
         # Lista as colunas selecionadas como indices
         indices_afilhados = [colunas_afilhados.index(col) for col in colunas_afilhados_selecionadas]
@@ -61,17 +68,12 @@ if uploaded_file_afilhados is not None and uploaded_file_padrinhos is not None:
         
         # Renomeia a última coluna para 'Numero de afilhados'
         df_padrinhos.rename(columns={df_padrinhos.columns[-1]: 'Numero de afilhados'}, inplace=True)
-
         # Armazena os DataFrames na sessão
         st.session_state.df_afilhados = df_afilhados
         st.session_state.df_padrinhos = df_padrinhos
     except Exception as e:
         pass
 
-    # Alterar número de afilhados por padrinho
-    x += int(st.button("Filtrar Colunas"))
-if x and 'df_padrinhos' in st.session_state:
-    
     try:
         st.header("Alterar Número de Afilhados Aceitos pelo Padrinho")
         padrinho_selecionado = st.selectbox(
@@ -93,19 +95,33 @@ if x and 'df_padrinhos' in st.session_state:
             st.success(f"Limite de afilhados para {padrinho_selecionado} atualizado para {novo_limite}!")
     except Exception as e:
         st.error(f"Erro ao filtrar colunas. Por favor, verifique se filtros foram aplicados corretamente. Erro: {e}")
+    numero_afilhados = st.session_state.df_afilhados.shape[0]
+    numero_afilhados_aceitos = st.session_state.df_padrinhos['Numero de afilhados'].sum()
+
+    if numero_afilhados > numero_afilhados_aceitos:
+        st.warning(f"**Atenção!** O número de afilhados ({numero_afilhados}) é maior que o número total de afilhados aceitos pelos padrinhos ({numero_afilhados_aceitos}). Para garantir que todos os afilhados sejam atendidos, considere aumentar o número de afilhados aceitos por padrinho.")
+
+    with st.expander("Ver DataFrames Carregados"):
+            st.subheader("DataFrame de Padrinhos")
+            st.dataframe(st.session_state.df_padrinhos)
+
 # Fazer match batch
 if 'df_afilhados' in st.session_state and 'df_padrinhos' in st.session_state:
     st.header("Realizar Match (Batch)")
     if st.button("Fazer Match Batch"):
+
+        df_afilhados = st.session_state.df_afilhados
+        df_padrinhos = st.session_state.df_padrinhos
+
         # Extrai valores únicos e gera matrizes de interesse
-        lista_unica_afilhados, indices_afilhados = extrair_valores_unicos_ordenados(st.session_state.df_afilhados)
-        lista_unica_padrinhos, indices_padrinhos = extrair_valores_unicos_ordenados(st.session_state.df_padrinhos, -1)
+        lista_unica_afilhados, indices_afilhados = extrair_valores_unicos_ordenados(df_afilhados)
+        lista_unica_padrinhos, indices_padrinhos = extrair_valores_unicos_ordenados(df_padrinhos, -1)
 
         df_afilhados_dummy = pd.DataFrame(columns=lista_unica_afilhados)
         df_padrinhos_dummy = pd.DataFrame(columns=lista_unica_padrinhos + ['Numero de afilhados'])
 
-        gerar_matriz_interesse(st.session_state.df_afilhados, df_afilhados_dummy, indices_afilhados)
-        gerar_matriz_interesse(st.session_state.df_padrinhos, df_padrinhos_dummy, indices_padrinhos, incluir_ultima_coluna=True)
+        gerar_matriz_interesse(df_afilhados, df_afilhados_dummy, indices_afilhados)
+        gerar_matriz_interesse(df_padrinhos, df_padrinhos_dummy, indices_padrinhos, incluir_ultima_coluna=True)
 
         # Realiza o match usando o algoritmo de otimização linear
         df_final_batch = algoritmo_apadrinhamento_lp(df_afilhados_dummy, df_padrinhos_dummy)
@@ -117,64 +133,6 @@ if 'df_afilhados' in st.session_state and 'df_padrinhos' in st.session_state:
         # Exibe os resultados
         st.write("Resultados do Match Batch:")
         st.dataframe(df_final_batch)
-
-# Cadastrar afilhado manualmente
-st.header("Cadastrar Afilhado Manualmente")
-nome_completo = st.text_input("Nome completo")
-hobbies = st.multiselect(
-    "Há algum hobbie que você pratica no final de semana/tempo livre?",
-    ['Anime', 'Desenho/Pintura', 'Filmes/Séries', 'Leitura', 'Música (escutar/tocar)', 'Cozinhar', 'Esporte', 'Jogo on/offline', 'Dança', 'Academia']
-)
-generos_filme_serie_livro = st.multiselect(
-    "Quais gêneros de filme/série/livro mais gosta?",
-    ['Aventura', 'Comédia', 'Drama', 'Fantasia', 'Romance', 'Ação', 'Ficção Científica', 'Suspense', 'Terror', 'Musical', 'Dorama']
-)
-estilo_musical = st.multiselect(
-    "Qual o seu estilo musical favorito?",
-    ['Funk', 'Pop', 'Rap', 'Sertanejo', 'Mpb', 'Rock', 'Eletrônica', 'Indie', 'Kpop', 'Pagode', 'Trap', 'Forró', 'Samba', 'Jazz', 'R&B', 'Alternativa', 'Reggae', 'Clássica', 'Axé']
-)
-animal_estimacao = st.selectbox(
-    "Você tem animal de estimação?",
-    ['Cachorro', 'Gato', 'Não tenho', 'Peixe', 'Tartaruga', 'Passarinho']
-)
-esportes = st.multiselect(
-    "Você pratica algum esporte?",
-    ['Vôlei', 'Futebol', 'Natação', 'Não pratico nenhum esporte', 'Artes Marciais', 'Atletismo', 'Basquete', 'E-Sports', 'Handebol', 'Tênis', 'Rugby', 'Patinação']
-)
-tipos_role = st.multiselect(
-    "Quais tipos de rolê você curte?",
-    ['Cinema', 'Festa Universitária', 'Museu', 'Parque/praça', 'Praia', 'Restaurante/café', 'Rolê caseiro', 'Bar', 'Rolê Online', 'Shopping']
-)
-
-if st.button("Adicionar Afilhado Manualmente"):
-    # Cria um dicionário com os dados do afilhado
-    afilhado = {
-        "Nome": nome_completo,
-        "Hobbies": ", ".join(hobbies),
-        "Gêneros Filme/Série/Livro": ", ".join(generos_filme_serie_livro),
-        "Estilo Musical": ", ".join(estilo_musical),
-        "Animal de Estimação": animal_estimacao,
-        "Esportes": ", ".join(esportes),
-        "Tipos de Rolê": ", ".join(tipos_role)
-    }
-
-    # Converte o dicionário em um DataFrame
-    df_afilhado_manual = pd.DataFrame([afilhado])
-
-    # Realiza o match em tempo real
-    if 'df_padrinhos' in st.session_state:
-        padrinho, compatibilidade = fazer_match_na_hora(df_afilhado_manual.iloc[0], st.session_state.df_padrinhos)
-        st.success(f"Padrinho mais compatível: **{padrinho}** (Compatibilidade: **{compatibilidade}%**)")
-
-        # Adiciona o match ao DataFrame de matches
-        novo_match = pd.DataFrame({
-            'Nome afilhado': [nome_completo],
-            'Compatibilidade': [compatibilidade],
-            'Nome padrinho': [padrinho]
-        })
-        st.session_state.df_final = pd.concat([st.session_state.df_final, novo_match], ignore_index=True)
-    else:
-        st.error("Por favor, faça upload dos arquivos de padrinhos primeiro.")
 
 # Exibir matches anteriores
 if 'df_final' in st.session_state:

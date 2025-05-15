@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from collections import Counter
-from pulp import LpProblem, LpVariable, lpSum, LpMinimize
+from pulp import LpProblem, LpVariable, lpSum, LpMinimize, LpStatus
 
 
 def filtro_colunas(df, indices):
@@ -151,6 +151,7 @@ def algoritmo_apadrinhamento_lp(df_afilhados_dummy, df_padrinhos_dummy):
                 nome_padrinho = df_padrinhos_dummy.iloc[j]['Nome']
                 porcentagem_match = round((1 - (cost_matrix[i, j] / len(df_afilhados_dummy.columns[1:]))) * 100, 2)
                 df_final.loc[len(df_final)] = [nome_afilhado, porcentagem_match, nome_padrinho]
+    print(LpStatus[prob.status])
 
     return df_final
 
